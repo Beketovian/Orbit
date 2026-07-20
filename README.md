@@ -73,7 +73,7 @@ src-tauri/               # Rust shell (native affordances only)
 └── src/lib.rs           # Tray icon + menu, panel toggle/anchor, window events
 ```
 
-**Providers.** Every usage source implements one interface: `fetchUsage(): Promise<ProviderResult>`. A result is either an `ok` snapshot (percent remaining + reset time) or an honest `unavailable` state with a reason. None of the three services currently document a public usage API, so the live providers report exactly that rather than scraping undocumented endpoints — and Demo Mode is the primary experience. The interface is ready the day real integrations become possible.
+**Providers.** Every usage source implements one interface: `fetchUsage(): Promise<ProviderResult>`. A result is either an `ok` snapshot (percent remaining + reset time) or an honest `unavailable` state with a reason. Live data comes from local files the tools already write — Claude Code session transcripts (`~/.claude/projects`, summed over the rolling 5-hour window against an estimated budget) and Codex CLI rate-limit snapshots (`~/.codex/sessions`, exact percentages). Antigravity has no readable local usage artifact yet and says so. Estimated values are marked `estimated` and labeled in Settings. Full details, principles, and roadmap: [docs/LIVE_PROVIDERS.md](docs/LIVE_PROVIDERS.md).
 
 **State.** A single Zustand store hydrates from disk, refreshes on a configurable interval, folds each snapshot into a per-day low-water-mark history (30 days retained), and persists through `tauri-plugin-store` (falling back to `localStorage` in a browser).
 
@@ -111,7 +111,10 @@ node scripts/generate-icon.mjs && npm run tauri icon src/assets/icon-source.png
 
 ## Roadmap
 
-- [ ] Real provider integrations as/when public usage APIs appear
+- [x] Local-file readers for Claude Code and Codex ([docs/LIVE_PROVIDERS.md](docs/LIVE_PROVIDERS.md))
+- [ ] Claude budget presets per plan + auto-calibration from observed peaks
+- [ ] Codex weekly (secondary) window
+- [ ] Antigravity local usage source, when one exists
 - [ ] Per-provider notification thresholds
 - [ ] Menu bar percentage title (macOS)
 - [ ] Localization

@@ -1,22 +1,17 @@
 import type { ProviderResult } from "@/types/usage";
+import { fetchLiveUsage } from "@/lib/liveUsage";
 import type { UsageProvider } from "./types";
 
 /**
- * Live OpenAI Codex usage.
- *
- * OpenAI does not document a public endpoint for Codex plan usage
- * limits, so this provider reports an honest unavailable state rather
- * than relying on undocumented APIs.
+ * Live OpenAI Codex usage, read from the rate-limit snapshots Codex CLI
+ * records in its local session rollout files (`~/.codex/sessions`).
+ * Exact percentages, as fresh as the last Codex session.
+ * See docs/LIVE_PROVIDERS.md.
  */
 export class CodexProvider implements UsageProvider {
   readonly id = "codex" as const;
 
-  async fetchUsage(): Promise<ProviderResult> {
-    return {
-      status: "unavailable",
-      providerId: this.id,
-      reason:
-        "OpenAI Codex does not expose a documented usage API. Enable Demo Mode to preview Orbit.",
-    };
+  fetchUsage(): Promise<ProviderResult> {
+    return fetchLiveUsage(this.id);
   }
 }

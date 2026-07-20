@@ -101,7 +101,9 @@ export function SettingsView() {
                     demo
                       ? "Demo data"
                       : live
-                        ? "Connected"
+                        ? result.snapshot.estimated
+                          ? "Connected · estimated from local session logs"
+                          : "Connected · from local session logs"
                         : result?.status === "unavailable"
                           ? result.reason
                           : PROVIDER_META[id].description
