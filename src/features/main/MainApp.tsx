@@ -40,7 +40,7 @@ export function MainApp() {
   return (
     <div className={styles.root}>
       <nav className={styles.sidebar} aria-label="Sections">
-        <div className={styles.brand}>
+        <div className={styles.brand} data-tauri-drag-region>
           <OrbitMark size={22} />
           <span className={styles.brandName}>Orbit</span>
         </div>
