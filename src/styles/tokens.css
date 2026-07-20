@@ -1,0 +1,181 @@
+/*
+ * Orbit design tokens.
+ *
+ * Everything visual flows from these variables: color, type, spacing,
+ * radii, shadows, and motion. Light is the default; dark overrides via
+ * media query, and both can be forced with [data-theme].
+ */
+
+:root {
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI Variable", "Segoe UI", system-ui, Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  /* ── Spacing scale ──────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+
+  /* ── Radii ──────────────────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 9999px;
+
+  /* ── Motion ─────────────────────────────────────────────────── */
+  --spring-fast: 240ms cubic-bezier(0.32, 0.72, 0.28, 1);
+  --spring-slow: 480ms cubic-bezier(0.32, 0.72, 0.28, 1);
+  --ring-duration: 900ms;
+
+  /* ── Provider palettes ──────────────────────────────────────── */
+  --claude-1: #e67d22;
+  --claude-2: #de7356;
+  --claude-3: #c15f3c;
+
+  --codex-1: #d7d4ff;
+  --codex-2: #aaa7ff;
+  --codex-3: #8188ff;
+  --codex-4: #596af7;
+  --codex-5: #3f4dda;
+
+  --antigravity-1: #f0524d;
+  --antigravity-2: #f59a2a;
+  --antigravity-3: #e9d43d;
+  --antigravity-4: #55bc70;
+  --antigravity-5: #37afc3;
+  --antigravity-6: #4a7cf0;
+  --antigravity-7: #624fe3;
+
+  /* Solid accents (used for dots, chart lines, focus tints). */
+  --claude-accent: #e67d22;
+  --codex-accent: #6373f5;
+  --antigravity-accent: #55bc70;
+
+  --accent: #596af7;
+  --danger: #e5484d;
+  --warning: #e5910a;
+  --success: #46a758;
+}
+
+/* ── Light appearance (default) ───────────────────────────────── */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-app: #f3f1f5;
+  --bg-window: rgba(246, 244, 248, 0.86);
+  --bg-sidebar: rgba(238, 235, 242, 0.72);
+  --bg-surface: rgba(255, 255, 255, 0.62);
+  --bg-surface-solid: #ffffff;
+  --bg-inset: rgba(120, 110, 130, 0.07);
+  --bg-inset-hover: rgba(120, 110, 130, 0.12);
+  --bg-active: rgba(120, 110, 130, 0.16);
+
+  --text-primary: rgba(28, 25, 33, 0.94);
+  --text-secondary: rgba(60, 56, 68, 0.62);
+  --text-tertiary: rgba(60, 56, 68, 0.42);
+
+  --separator: rgba(60, 50, 70, 0.1);
+  --ring-track: rgba(120, 110, 130, 0.13);
+
+  --shadow-panel:
+    0 24px 60px rgba(30, 20, 45, 0.18), 0 4px 14px rgba(30, 20, 45, 0.08),
+    0 0 0 0.5px rgba(30, 20, 45, 0.1);
+  --shadow-card:
+    0 2px 10px rgba(30, 20, 45, 0.05), 0 0 0 0.5px rgba(30, 20, 45, 0.06);
+  --shadow-raised:
+    0 6px 22px rgba(30, 20, 45, 0.1), 0 0 0 0.5px rgba(30, 20, 45, 0.08);
+}
+
+/* ── Dark appearance ──────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg-app: #1c1a20;
+    --bg-window: rgba(32, 30, 37, 0.88);
+    --bg-sidebar: rgba(26, 24, 30, 0.72);
+    --bg-surface: rgba(255, 255, 255, 0.055);
+    --bg-surface-solid: #26242c;
+    --bg-inset: rgba(255, 255, 255, 0.07);
+    --bg-inset-hover: rgba(255, 255, 255, 0.11);
+    --bg-active: rgba(255, 255, 255, 0.15);
+
+    --text-primary: rgba(245, 243, 248, 0.95);
+    --text-secondary: rgba(235, 232, 240, 0.6);
+    --text-tertiary: rgba(235, 232, 240, 0.38);
+
+    --separator: rgba(255, 255, 255, 0.09);
+    --ring-track: rgba(255, 255, 255, 0.1);
+
+    --shadow-panel:
+      0 24px 60px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.3),
+      0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    --shadow-card:
+      0 2px 10px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    --shadow-raised:
+      0 6px 22px rgba(0, 0, 0, 0.32), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+
+    --codex-accent: #8188ff;
+    --antigravity-accent: #5ecb7b;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-app: #1c1a20;
+  --bg-window: rgba(32, 30, 37, 0.88);
+  --bg-sidebar: rgba(26, 24, 30, 0.72);
+  --bg-surface: rgba(255, 255, 255, 0.055);
+  --bg-surface-solid: #26242c;
+  --bg-inset: rgba(255, 255, 255, 0.07);
+  --bg-inset-hover: rgba(255, 255, 255, 0.11);
+  --bg-active: rgba(255, 255, 255, 0.15);
+
+  --text-primary: rgba(245, 243, 248, 0.95);
+  --text-secondary: rgba(235, 232, 240, 0.6);
+  --text-tertiary: rgba(235, 232, 240, 0.38);
+
+  --separator: rgba(255, 255, 255, 0.09);
+  --ring-track: rgba(255, 255, 255, 0.1);
+
+  --shadow-panel:
+    0 24px 60px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.3),
+    0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --shadow-card:
+    0 2px 10px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --shadow-raised:
+    0 6px 22px rgba(0, 0, 0, 0.32), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+
+  --codex-accent: #8188ff;
+  --antigravity-accent: #5ecb7b;
+}
+
+/* ── High contrast ────────────────────────────────────────────── */
+@media (prefers-contrast: more) {
+  :root {
+    --text-secondary: var(--text-primary);
+    --separator: rgba(128, 128, 128, 0.55);
+    --ring-track: rgba(128, 128, 128, 0.4);
+  }
+}

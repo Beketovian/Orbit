@@ -1,0 +1,32 @@
+.group {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+}
+
+.segment {
+  min-height: 24px;
+  padding: 2px 12px;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition:
+    background var(--spring-fast),
+    color var(--spring-fast),
+    box-shadow var(--spring-fast);
+}
+
+.segment:hover:not(.selected) {
+  color: var(--text-primary);
+}
+
+.selected {
+  background: var(--bg-surface-solid);
+  color: var(--text-primary);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 0 0.5px rgba(0, 0, 0, 0.05);
+}
