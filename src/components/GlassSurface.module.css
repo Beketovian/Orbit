@@ -1,0 +1,21 @@
+.surface {
+  border-radius: var(--radius-lg);
+}
+
+.panel {
+  background: var(--bg-window);
+  backdrop-filter: blur(36px) saturate(1.6);
+  -webkit-backdrop-filter: blur(36px) saturate(1.6);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-panel);
+}
+
+.card {
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.inset {
+  background: var(--bg-inset);
+  box-shadow: none;
+}
