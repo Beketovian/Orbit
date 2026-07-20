@@ -1,0 +1,74 @@
+.view {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.group {
+  overflow: hidden;
+}
+
+.groupTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 var(--space-4) var(--space-2);
+}
+
+.select {
+  appearance: none;
+  min-height: 28px;
+  padding: 3px 26px 3px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2.5 4l2.5 2.5L7.5 4' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      no-repeat right 8px center,
+    var(--bg-inset);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.statusDot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+}
+
+.statusOk {
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 18%, transparent);
+}
+
+.statusOff {
+  background: var(--text-tertiary);
+}
+
+.about {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.aboutName {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.aboutCopy {
+  margin-top: 1px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 420px;
+}
