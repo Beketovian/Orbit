@@ -20,6 +20,8 @@ export interface UsageSnapshot {
   reset: ResetInfo;
   /** Epoch millis when this snapshot was taken. */
   takenAt: number;
+  /** True when computed against an estimated limit (see docs/LIVE_PROVIDERS.md). */
+  estimated?: boolean;
 }
 
 /**

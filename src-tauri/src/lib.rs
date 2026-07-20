@@ -3,6 +3,8 @@
 //! All product logic lives in the frontend; this layer only provides
 //! the native affordances a good menu-bar utility needs.
 
+pub mod usage;
+
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -10,6 +12,16 @@ use tauri::{
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_positioner::{Position, WindowExt};
+
+/// Read real usage for one provider from local files (see
+/// docs/LIVE_PROVIDERS.md). Runs on a blocking thread because it walks
+/// and parses session logs.
+#[tauri::command]
+async fn get_live_usage(provider: String) -> usage::LiveUsage {
+    tauri::async_runtime::spawn_blocking(move || usage::fetch(&provider))
+        .await
+        .unwrap_or_else(|_| usage::LiveUsage::unavailable("Usage reader crashed."))
+}
 
 /// Show and focus the main window, optionally navigating to a section.
 #[tauri::command]
@@ -95,7 +107,11 @@ pub fn run() {
             MacosLauncher::LaunchAgent,
             None,
         ))
-        .invoke_handler(tauri::generate_handler![open_main_window, hide_panel])
+        .invoke_handler(tauri::generate_handler![
+            open_main_window,
+            hide_panel,
+            get_live_usage
+        ])
         .setup(|app| {
             build_tray(app.handle())?;
             Ok(())
