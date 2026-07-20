@@ -8,9 +8,15 @@ import { generateDemoHistory } from "@/providers/demo";
 import { loadValue, saveValue } from "@/lib/persistence";
 import { sendNotification } from "@/lib/notifications";
 import { getAutostart, setAutostart } from "@/lib/autostart";
+import { emitEvent, getWindowKind, isTauri } from "@/lib/tauri";
 import { dayKey } from "@/lib/time";
 
 const HISTORY_DAYS = 30;
+
+/** Identifies this window's store so it can ignore its own broadcasts. */
+export const STORE_INSTANCE_ID = Math.random().toString(36).slice(2);
+
+export const STATE_CHANGED_EVENT = "orbit://state-changed";
 
 export type SnapshotMap = Record<ProviderId, ProviderResult | null>;
 
@@ -25,6 +31,8 @@ interface UsageState {
   notifiedLow: ProviderId[];
 
   hydrate(): Promise<void>;
+  /** Re-read persisted state written by another Orbit window. */
+  rehydrate(): Promise<void>;
   refresh(): Promise<void>;
   setDemoMode(enabled: boolean): Promise<void>;
   setRefreshInterval(minutes: RefreshInterval): void;
@@ -83,6 +91,12 @@ async function persist(state: Pick<UsageState, "settings" | "snapshots" | "histo
     saveValue("history", state.history),
     saveValue("lastUpdated", state.lastUpdated),
   ]);
+  await emitEvent(STATE_CHANGED_EVENT, STORE_INSTANCE_ID);
+}
+
+async function persistSettings(settings: Settings) {
+  await saveValue("settings", settings);
+  await emitEvent(STATE_CHANGED_EVENT, STORE_INSTANCE_ID);
 }
 
 export const useUsageStore = create<UsageState>((set, get) => ({
@@ -117,6 +131,21 @@ export const useUsageStore = create<UsageState>((set, get) => ({
     });
 
     await get().refresh();
+  },
+
+  async rehydrate() {
+    const [settings, snapshots, history, lastUpdated] = await Promise.all([
+      loadValue<Settings>("settings"),
+      loadValue<SnapshotMap>("snapshots"),
+      loadValue<UsageHistory>("history"),
+      loadValue<number>("lastUpdated"),
+    ]);
+    set({
+      settings: { ...DEFAULT_SETTINGS, ...settings },
+      snapshots: { ...emptySnapshots(), ...snapshots },
+      history: { ...emptyHistory(), ...history },
+      lastUpdated: lastUpdated ?? null,
+    });
   },
 
   async refresh() {
@@ -167,20 +196,20 @@ export const useUsageStore = create<UsageState>((set, get) => ({
   setRefreshInterval(minutes) {
     const settings = { ...get().settings, refreshIntervalMinutes: minutes };
     set({ settings });
-    void saveValue("settings", settings);
+    void persistSettings(settings);
   },
 
   async setLaunchAtLogin(enabled) {
     const actual = await setAutostart(enabled);
     const settings = { ...get().settings, launchAtLogin: actual };
     set({ settings });
-    void saveValue("settings", settings);
+    void persistSettings(settings);
   },
 
   setNotificationsEnabled(enabled) {
     const settings = { ...get().settings, notificationsEnabled: enabled };
     set({ settings, notifiedLow: enabled ? get().notifiedLow : [] });
-    void saveValue("settings", settings);
+    void persistSettings(settings);
   },
 }));
 
@@ -194,6 +223,9 @@ type Set = (partial: Partial<UsageState>) => void;
 async function maybeNotifyLowUsage(get: Get, set: Set): Promise<void> {
   const { settings, snapshots, notifiedLow } = get();
   if (!settings.notificationsEnabled) return;
+  // In the desktop app both windows refresh; only the always-present
+  // panel window notifies, so alerts never arrive twice.
+  if (isTauri() && getWindowKind() !== "panel") return;
 
   const stillLow: ProviderId[] = [];
   for (const id of PROVIDER_IDS) {

@@ -48,6 +48,13 @@ export async function hidePanel(): Promise<void> {
   await invoke("hide_panel");
 }
 
+/** Broadcast an app-level event to every window (no-op in the browser). */
+export async function emitEvent(event: string, payload?: unknown): Promise<void> {
+  if (!isTauri()) return;
+  const { emit } = await import("@tauri-apps/api/event");
+  await emit(event, payload);
+}
+
 /** Subscribe to an app-level event emitted by the Rust side. */
 export async function listenToEvent(
   event: string,
