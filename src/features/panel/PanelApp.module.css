@@ -83,7 +83,6 @@
   gap: var(--space-3);
   border-top: 0.5px solid var(--separator);
   padding-top: var(--space-3);
-  margin-top: auto;
 }
 
 .updated {

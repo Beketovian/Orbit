@@ -15,6 +15,13 @@
   color: var(--text-secondary);
 }
 
+.text.sm {
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .text strong {
   color: var(--text-primary);
   font-weight: 600;

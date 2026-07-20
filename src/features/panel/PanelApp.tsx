@@ -67,7 +67,7 @@ export function PanelApp() {
         </div>
 
         <div className={styles.section}>
-          <StatusRow icon={<ClockIcon size={14} />}>
+          <StatusRow size="sm" icon={<ClockIcon size={14} />}>
             {resetParts.length > 0 ? (
               resetParts.map((part, i) => (
                 <span key={i}>
