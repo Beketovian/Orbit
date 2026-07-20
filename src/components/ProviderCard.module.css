@@ -1,0 +1,40 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-4) var(--space-5);
+}
+
+/* Whisper-quiet provider tints, echoing the ring colors. */
+.claude {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--claude-1) 9%, transparent),
+    color-mix(in srgb, var(--claude-1) 3%, transparent) 70%
+  ), var(--bg-surface);
+}
+
+.codex {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--codex-3) 9%, transparent),
+    color-mix(in srgb, var(--codex-3) 3%, transparent) 70%
+  ), var(--bg-surface);
+}
+
+.antigravity {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--antigravity-4) 9%, transparent),
+    color-mix(in srgb, var(--antigravity-4) 3%, transparent) 70%
+  ), var(--bg-surface);
+}
+
+.reset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
