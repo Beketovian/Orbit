@@ -1,13 +1,19 @@
 import { useEffect } from "react";
-import { useUsageStore } from "@/store/usageStore";
+import {
+  STATE_CHANGED_EVENT,
+  STORE_INSTANCE_ID,
+  useUsageStore,
+} from "@/store/usageStore";
 import { listenToEvent } from "@/lib/tauri";
 
 /**
  * Hydrates the store on mount, refreshes on the configured interval,
- * and reacts to refresh requests from the tray menu.
+ * reacts to refresh requests from the tray menu, and keeps this
+ * window's state in sync with changes made in other Orbit windows.
  */
 export function useAutoRefresh(): void {
   const hydrate = useUsageStore((s) => s.hydrate);
+  const rehydrate = useUsageStore((s) => s.rehydrate);
   const refresh = useUsageStore((s) => s.refresh);
   const intervalMinutes = useUsageStore((s) => s.settings.refreshIntervalMinutes);
 
@@ -27,4 +33,14 @@ export function useAutoRefresh(): void {
     });
     return () => unlisten?.();
   }, [refresh]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listenToEvent(STATE_CHANGED_EVENT, (payload) => {
+      if (payload !== STORE_INSTANCE_ID) void rehydrate();
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, [rehydrate]);
 }
