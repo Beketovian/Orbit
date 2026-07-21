@@ -12,6 +12,22 @@ export type ResetInfo =
   | { kind: "at"; timestamp: number }
   | { kind: "unknown" };
 
+/** The provider limit window represented by a snapshot, when known. */
+export type UsageLimitWindow = "fiveHour" | "weekly";
+
+export interface UsageCategoryLimit {
+  window: UsageLimitWindow;
+  percentRemaining: number;
+  reset: ResetInfo;
+}
+
+export interface UsageCategory {
+  id: string;
+  name: string;
+  description?: string;
+  limits: UsageCategoryLimit[];
+}
+
 /** A single reading of remaining usage for one provider. */
 export interface UsageSnapshot {
   providerId: ProviderId;
@@ -22,6 +38,12 @@ export interface UsageSnapshot {
   takenAt: number;
   /** True when computed against an estimated limit (see docs/LIVE_PROVIDERS.md). */
   estimated?: boolean;
+  /** Lets the UI distinguish a weekly fallback from the preferred 5-hour limit. */
+  limitWindow?: UsageLimitWindow;
+  /** Account-wide limit windows exposed by Claude and Codex. */
+  limits?: UsageCategoryLimit[];
+  /** Provider-specific model groups and their separate limit windows. */
+  usageCategories?: UsageCategory[];
 }
 
 /**

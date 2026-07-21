@@ -1,7 +1,7 @@
 //! Local, read-only usage readers for the live providers.
 //!
 //! Everything here follows the rules in `docs/LIVE_PROVIDERS.md`:
-//! read-only access to files the tools already write, honest
+//! read-only access to local files and loopback services, honest
 //! `Unavailable` results when nothing reliable exists, and estimates
 //! clearly marked as such.
 
@@ -13,6 +13,31 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// Mirror of the frontend `ProviderResult`, produced natively.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LimitWindow {
+    FiveHour,
+    Weekly,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageCategoryLimit {
+    pub window: LimitWindow,
+    pub percent_remaining: f64,
+    pub reset_at_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageCategory {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub limits: Vec<UsageCategoryLimit>,
+}
 
 /// Mirror of the frontend `ProviderResult`, produced natively.
 #[derive(Debug, Clone, Serialize)]
@@ -28,6 +53,12 @@ pub enum LiveUsage {
         taken_at_ms: i64,
         /// True when the value is computed against an estimated limit.
         estimated: bool,
+        /// Which provider limit window this snapshot represents, when known.
+        limit_window: Option<LimitWindow>,
+        /// Every account-wide limit window exposed by the provider.
+        limits: Option<Vec<UsageCategoryLimit>>,
+        /// Provider-specific usage groups, when the source exposes them.
+        usage_categories: Option<Vec<UsageCategory>>,
     },
     #[serde(rename_all = "camelCase")]
     Unavailable { reason: String },
@@ -174,5 +205,23 @@ mod tests {
         );
         assert_eq!(parse_rfc3339_ms("not a date"), None);
         assert_eq!(parse_rfc3339_ms(""), None);
+    }
+
+    #[test]
+    fn serializes_limit_window_for_the_frontend() {
+        let value = serde_json::to_value(LiveUsage::Ok {
+            percent_remaining: 47.0,
+            reset_at_ms: Some(1_785_109_319_000),
+            taken_at_ms: 1_784_588_800_000,
+            estimated: false,
+            limit_window: Some(LimitWindow::Weekly),
+            limits: None,
+            usage_categories: None,
+        })
+        .unwrap();
+
+        assert_eq!(value["status"], "ok");
+        assert_eq!(value["limitWindow"], "weekly");
+        assert_eq!(value["resetAtMs"], 1_785_109_319_000_i64);
     }
 }

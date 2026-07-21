@@ -4,7 +4,12 @@
  * providers resolve to an honest unavailable state.
  */
 
-import type { ProviderId, ProviderResult } from "@/types/usage";
+import type {
+  ProviderId,
+  ProviderResult,
+  UsageCategory,
+  UsageLimitWindow,
+} from "@/types/usage";
 import { isTauri } from "./tauri";
 
 interface LiveUsageOk {
@@ -13,6 +18,22 @@ interface LiveUsageOk {
   resetAtMs: number | null;
   takenAtMs: number;
   estimated: boolean;
+  limitWindow: UsageLimitWindow | null;
+  limits: LiveUsageLimit[] | null;
+  usageCategories: LiveUsageCategory[] | null;
+}
+
+interface LiveUsageLimit {
+  window: UsageLimitWindow;
+  percentRemaining: number;
+  resetAtMs: number | null;
+}
+
+interface LiveUsageCategory {
+  id: string;
+  name: string;
+  description: string | null;
+  limits: LiveUsageLimit[];
 }
 
 interface LiveUsageUnavailable {
@@ -21,6 +42,33 @@ interface LiveUsageUnavailable {
 }
 
 type LiveUsagePayload = LiveUsageOk | LiveUsageUnavailable;
+
+function resetInfo(resetAtMs: number | null) {
+  return resetAtMs === null
+    ? ({ kind: "unknown" } as const)
+    : ({ kind: "at", timestamp: resetAtMs } as const);
+}
+
+function mapUsageCategories(
+  categories: LiveUsageCategory[] | null,
+): UsageCategory[] | undefined {
+  if (!categories?.length) return undefined;
+  return categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    description: category.description ?? undefined,
+    limits: mapLimits(category.limits) ?? [],
+  }));
+}
+
+function mapLimits(limits: LiveUsageLimit[] | null) {
+  if (!limits?.length) return undefined;
+  return limits.map((limit) => ({
+    window: limit.window,
+    percentRemaining: Math.round(limit.percentRemaining),
+    reset: resetInfo(limit.resetAtMs),
+  }));
+}
 
 export async function fetchLiveUsage(id: ProviderId): Promise<ProviderResult> {
   if (!isTauri()) {
@@ -41,12 +89,12 @@ export async function fetchLiveUsage(id: ProviderId): Promise<ProviderResult> {
         snapshot: {
           providerId: id,
           percentRemaining: Math.round(payload.percentRemaining),
-          reset:
-            payload.resetAtMs === null
-              ? { kind: "unknown" }
-              : { kind: "at", timestamp: payload.resetAtMs },
+          reset: resetInfo(payload.resetAtMs),
           takenAt: payload.takenAtMs,
           estimated: payload.estimated,
+          limitWindow: payload.limitWindow ?? undefined,
+          limits: mapLimits(payload.limits),
+          usageCategories: mapUsageCategories(payload.usageCategories),
         },
       };
     }

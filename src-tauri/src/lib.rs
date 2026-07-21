@@ -13,9 +13,9 @@ use tauri::{
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_positioner::{Position, WindowExt};
 
-/// Read real usage for one provider from local files (see
-/// docs/LIVE_PROVIDERS.md). Runs on a blocking thread because it walks
-/// and parses session logs.
+/// Read real usage for one provider from local files or loopback services
+/// (see docs/LIVE_PROVIDERS.md). Runs on a blocking thread because readers
+/// walk session logs and may briefly query a local process.
 #[tauri::command]
 async fn get_live_usage(provider: String) -> usage::LiveUsage {
     tauri::async_runtime::spawn_blocking(move || usage::fetch(&provider))

@@ -8,7 +8,10 @@
 //! budget — clearly marked as an estimate, because Anthropic does not
 //! publish per-plan token budgets.
 
-use super::{collect_recent_jsonl, now_ms, parse_rfc3339_ms, LiveUsage};
+use super::{
+    collect_recent_jsonl, now_ms, parse_rfc3339_ms, LimitWindow, LiveUsage, UsageCategoryLimit,
+};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs;
@@ -16,6 +19,79 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 const WINDOW_MS: i64 = 5 * 60 * 60 * 1_000;
+
+/// Filename Orbit's statusline bridge (see `docs/LIVE_PROVIDERS.md`) writes
+/// the exact rate-limit snapshot to, alongside the `projects` directory.
+const LIVE_CACHE_FILE: &str = "orbit-live-usage.json";
+
+#[derive(Deserialize)]
+struct RateWindow {
+    used_percentage: Option<f64>,
+    /// Epoch seconds, matching Claude Code's own statusline field.
+    resets_at: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct LiveCache {
+    five_hour: Option<RateWindow>,
+    seven_day: Option<RateWindow>,
+    written_at_ms: i64,
+}
+
+struct LiveCacheReading {
+    limits: Vec<UsageCategoryLimit>,
+    taken_at_ms: i64,
+}
+
+/// Read the exact rate-limit windows cached by the statusline bridge. Each
+/// window is validated against its own reset so a freshly cached weekly
+/// value can survive an expired five-hour value without showing stale data.
+fn cache_limit(
+    rate_window: Option<RateWindow>,
+    window: LimitWindow,
+    now: i64,
+) -> Option<UsageCategoryLimit> {
+    let rate_window = rate_window?;
+    let used = rate_window.used_percentage?;
+    let reset_at_ms = rate_window.resets_at.map(|seconds| seconds * 1_000);
+    reset_at_ms
+        .is_some_and(|reset| reset > now)
+        .then_some(UsageCategoryLimit {
+            window,
+            percent_remaining: (100.0 - used).clamp(0.0, 100.0).round(),
+            reset_at_ms,
+        })
+}
+
+fn read_live_cache(roots: &[PathBuf], now: i64) -> Option<LiveCacheReading> {
+    for root in roots {
+        let path = root.parent()?.join(LIVE_CACHE_FILE);
+        let Ok(text) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(cache) = serde_json::from_str::<LiveCache>(&text) else {
+            continue;
+        };
+        let mut limits = [
+            cache_limit(cache.five_hour, LimitWindow::FiveHour, now),
+            cache_limit(cache.seven_day, LimitWindow::Weekly, now),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+        if !limits.is_empty() {
+            limits.sort_by_key(|limit| match limit.window {
+                LimitWindow::FiveHour => 0,
+                LimitWindow::Weekly => 1,
+            });
+            return Some(LiveCacheReading {
+                limits,
+                taken_at_ms: cache.written_at_ms,
+            });
+        }
+    }
+    None
+}
 
 /// Rough 5-hour token budget used to turn a token sum into a remaining
 /// percentage. Anthropic publishes no per-plan budget, so this is a
@@ -35,6 +111,32 @@ pub fn fetch() -> LiveUsage {
     }
 
     let now = now_ms();
+
+    // Prefer the exact snapshot from the statusline bridge when it still
+    // describes the current window — no guessing at a token budget.
+    if let Some(cache) = read_live_cache(&existing, now) {
+        let primary = cache
+            .limits
+            .iter()
+            .find(|limit| limit.window == LimitWindow::FiveHour)
+            .or_else(|| cache.limits.first())
+            .expect("a live cache reading always contains a limit");
+        let (percent_remaining, reset_at_ms, limit_window) = (
+            primary.percent_remaining,
+            primary.reset_at_ms,
+            primary.window,
+        );
+        return LiveUsage::Ok {
+            percent_remaining,
+            reset_at_ms,
+            taken_at_ms: cache.taken_at_ms,
+            estimated: false,
+            limit_window: Some(limit_window),
+            limits: Some(cache.limits),
+            usage_categories: None,
+        };
+    }
+
     let mut files = Vec::new();
     for root in &existing {
         collect_recent_jsonl(root, now - WINDOW_MS, 6, &mut files);
@@ -52,6 +154,13 @@ pub fn fetch() -> LiveUsage {
                 reset_at_ms: window.oldest_ms.map(|t| t + WINDOW_MS),
                 taken_at_ms: now,
                 estimated: true,
+                limit_window: Some(LimitWindow::FiveHour),
+                limits: Some(vec![UsageCategoryLimit {
+                    window: LimitWindow::FiveHour,
+                    percent_remaining: remaining.round(),
+                    reset_at_ms: window.oldest_ms.map(|t| t + WINDOW_MS),
+                }]),
+                usage_categories: None,
             }
         }
         _ => LiveUsage::Ok {
@@ -60,6 +169,13 @@ pub fn fetch() -> LiveUsage {
             reset_at_ms: None,
             taken_at_ms: now,
             estimated: true,
+            limit_window: Some(LimitWindow::FiveHour),
+            limits: Some(vec![UsageCategoryLimit {
+                window: LimitWindow::FiveHour,
+                percent_remaining: 100.0,
+                reset_at_ms: None,
+            }]),
+            usage_categories: None,
         },
     }
 }
@@ -182,5 +298,82 @@ mod tests {
     fn ignores_lines_without_usage() {
         assert!(parse_line(r#"{"type":"user","timestamp":"2026-07-20T11:00:00Z"}"#).is_none());
         assert!(parse_line("garbage").is_none());
+    }
+
+    fn cache_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "orbit-claude-cache-test-{name}-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(dir.join("projects")).unwrap();
+        dir
+    }
+
+    #[test]
+    fn prefers_live_cache_within_its_window() {
+        let dir = cache_dir("fresh");
+        let now = parse_rfc3339_ms("2026-07-20T13:00:00Z").unwrap();
+        let resets_at_s = (now + 60 * 60 * 1_000) / 1_000; // resets in 1h, still current
+        fs::write(
+            dir.join(LIVE_CACHE_FILE),
+            format!(
+                r#"{{"five_hour":{{"used_percentage":51,"resets_at":{resets_at_s}}},"written_at_ms":{now}}}"#
+            ),
+        )
+        .unwrap();
+
+        let roots = vec![dir.join("projects")];
+        let cached = read_live_cache(&roots, now).unwrap();
+        assert_eq!(cached.taken_at_ms, now);
+        assert_eq!(cached.limits.len(), 1);
+        assert_eq!(cached.limits[0].window, LimitWindow::FiveHour);
+        assert_eq!(cached.limits[0].percent_remaining, 49.0);
+        assert_eq!(cached.limits[0].reset_at_ms, Some(resets_at_s * 1_000));
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ignores_live_cache_once_its_window_has_reset() {
+        let dir = cache_dir("stale");
+        let written_at = parse_rfc3339_ms("2026-07-20T01:00:00Z").unwrap();
+        let resets_at_s = (written_at + 60 * 60 * 1_000) / 1_000; // long since reset by "now"
+        fs::write(
+            dir.join(LIVE_CACHE_FILE),
+            format!(
+                r#"{{"five_hour":{{"used_percentage":51,"resets_at":{resets_at_s}}},"written_at_ms":{written_at}}}"#
+            ),
+        )
+        .unwrap();
+
+        let now = parse_rfc3339_ms("2026-07-20T13:00:00Z").unwrap();
+        let roots = vec![dir.join("projects")];
+        assert!(read_live_cache(&roots, now).is_none());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reads_five_hour_and_weekly_cache_windows() {
+        let dir = cache_dir("both-windows");
+        let now = parse_rfc3339_ms("2026-07-20T13:00:00Z").unwrap();
+        let five_reset = (now + 2 * 60 * 60 * 1_000) / 1_000;
+        let weekly_reset = (now + 6 * 24 * 60 * 60 * 1_000) / 1_000;
+        fs::write(
+            dir.join(LIVE_CACHE_FILE),
+            format!(
+                r#"{{"five_hour":{{"used_percentage":71,"resets_at":{five_reset}}},"seven_day":{{"used_percentage":7,"resets_at":{weekly_reset}}},"written_at_ms":{now}}}"#
+            ),
+        )
+        .unwrap();
+
+        let cached = read_live_cache(&[dir.join("projects")], now).unwrap();
+        assert_eq!(cached.limits.len(), 2);
+        assert_eq!(cached.limits[0].window, LimitWindow::FiveHour);
+        assert_eq!(cached.limits[0].percent_remaining, 29.0);
+        assert_eq!(cached.limits[1].window, LimitWindow::Weekly);
+        assert_eq!(cached.limits[1].percent_remaining, 93.0);
+
+        fs::remove_dir_all(&dir).ok();
     }
 }

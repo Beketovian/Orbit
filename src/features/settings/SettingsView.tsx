@@ -17,7 +17,6 @@ function intervalLabel(minutes: RefreshInterval): string {
 export function SettingsView() {
   const settings = useUsageStore((s) => s.settings);
   const snapshots = useUsageStore((s) => s.snapshots);
-  const setDemoMode = useUsageStore((s) => s.setDemoMode);
   const setRefreshInterval = useUsageStore((s) => s.setRefreshInterval);
   const setLaunchAtLogin = useUsageStore((s) => s.setLaunchAtLogin);
   const setNotificationsEnabled = useUsageStore((s) => s.setNotificationsEnabled);
@@ -30,16 +29,6 @@ export function SettingsView() {
 
       <div className={styles.groups}>
         <GlassSurface variant="card" className={styles.group}>
-          <SettingsRow
-            title="Demo Mode"
-            description="Preview Orbit with sample data — no accounts required."
-          >
-            <Toggle
-              label="Demo Mode"
-              checked={settings.demoMode}
-              onChange={(v) => void setDemoMode(v)}
-            />
-          </SettingsRow>
           <SettingsRow
             title="Refresh interval"
             description="How often Orbit checks remaining usage."
@@ -91,19 +80,20 @@ export function SettingsView() {
           <GlassSurface variant="card" className={styles.group}>
             {PROVIDER_IDS.map((id) => {
               const result = snapshots[id];
-              const live = result?.status === "ok" && !settings.demoMode;
-              const demo = result?.status === "ok" && settings.demoMode;
+              const connected = result?.status === "ok";
               return (
                 <SettingsRow
                   key={id}
                   title={PROVIDER_META[id].name}
                   description={
-                    demo
-                      ? "Demo data"
-                      : live
-                        ? result.snapshot.estimated
-                          ? "Connected · estimated from local session logs"
-                          : "Connected · from local session logs"
+                    connected
+                      ? result.snapshot.estimated
+                        ? "Connected · estimated from local session logs"
+                        : id === "antigravity"
+                          ? "Connected · live from the local Antigravity service"
+                          : result.snapshot.limitWindow === "weekly"
+                            ? "Connected · weekly limit from local session logs"
+                            : "Connected · from local session logs"
                         : result?.status === "unavailable"
                           ? result.reason
                           : PROVIDER_META[id].description

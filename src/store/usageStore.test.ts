@@ -3,7 +3,7 @@ import { recordHistory, useUsageStore } from "./usageStore";
 import type { SnapshotMap } from "./usageStore";
 import type { UsageHistory } from "@/types/usage";
 import { dayKey } from "@/lib/time";
-import { DEMO_PERCENTS } from "@/providers/demo";
+import { DEFAULT_SETTINGS } from "@/types/settings";
 
 function okSnapshot(pct: number, takenAt = Date.now()): SnapshotMap {
   return {
@@ -64,13 +64,7 @@ describe("useUsageStore", () => {
     window.localStorage.clear();
     useUsageStore.setState({
       hydrated: false,
-      settings: {
-        demoMode: true,
-        refreshIntervalMinutes: 5,
-        launchAtLogin: false,
-        notificationsEnabled: true,
-        lowUsageThreshold: 20,
-      },
+      settings: DEFAULT_SETTINGS,
       snapshots: { claude: null, codex: null, antigravity: null },
       history: { claude: [], codex: [], antigravity: [] },
       lastUpdated: null,
@@ -79,27 +73,38 @@ describe("useUsageStore", () => {
     });
   });
 
-  it("hydrates and produces demo snapshots and history", async () => {
+  it("hydrates directly into honest live-provider states", async () => {
     await useUsageStore.getState().hydrate();
     const state = useUsageStore.getState();
     expect(state.hydrated).toBe(true);
-    expect(state.snapshots.claude?.status).toBe("ok");
-    if (state.snapshots.codex?.status === "ok") {
-      expect(state.snapshots.codex.snapshot.percentRemaining).toBe(
-        DEMO_PERCENTS.codex,
-      );
+    for (const result of Object.values(state.snapshots)) {
+      expect(result?.status).toBe("unavailable");
     }
-    expect(state.history.antigravity.length).toBeGreaterThanOrEqual(29);
+    expect(state.history).toEqual(empty);
     expect(state.lastUpdated).not.toBeNull();
   });
 
-  it("switching demo mode off yields honest unavailable snapshots", async () => {
+  it("migrates retired Demo Mode settings without retaining sample history", async () => {
+    window.localStorage.setItem(
+      "orbit:settings",
+      JSON.stringify({ ...DEFAULT_SETTINGS, demoMode: true }),
+    );
+    window.localStorage.setItem(
+      "orbit:history",
+      JSON.stringify({
+        ...empty,
+        claude: [{ day: "2026-07-20", percentRemaining: 92 }],
+      }),
+    );
+
     await useUsageStore.getState().hydrate();
-    await useUsageStore.getState().setDemoMode(false);
     const state = useUsageStore.getState();
-    expect(state.settings.demoMode).toBe(false);
+    expect(state.settings).toEqual(DEFAULT_SETTINGS);
     expect(state.snapshots.claude?.status).toBe("unavailable");
     expect(state.history.claude).toHaveLength(0);
+    expect(window.localStorage.getItem("orbit:settings")).not.toContain(
+      "demoMode",
+    );
   });
 
   it("persists settings across store lifecycles", async () => {

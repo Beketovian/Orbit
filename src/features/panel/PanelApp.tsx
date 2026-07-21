@@ -33,8 +33,11 @@ export function PanelApp() {
     if (result?.status !== "ok") return [];
     return [
       <span key={id}>
-        <strong>{PROVIDER_META[id].name}</strong>{" "}
-        {formatReset(result.snapshot.reset, now)}
+        <strong>
+          {PROVIDER_META[id].name}
+          {result.snapshot.limitWindow === "weekly" ? " weekly limit" : ""}
+        </strong>{" "}
+        resets {formatReset(result.snapshot.reset, now)}
       </span>,
     ];
   });
@@ -58,6 +61,13 @@ export function PanelApp() {
                   result?.status === "ok"
                     ? result.snapshot.percentRemaining
                     : null
+                }
+                windowLabel={
+                  result?.status === "ok"
+                    ? result.snapshot.limitWindow === "weekly"
+                      ? "Week"
+                      : "5h"
+                    : undefined
                 }
                 size={124}
                 strokeWidth={9}

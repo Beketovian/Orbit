@@ -27,7 +27,7 @@ export function summarizeUsage(
     return {
       tone: "unknown",
       title: "Live usage is unavailable.",
-      subtitle: "Turn on Demo Mode in Settings to preview Orbit.",
+      subtitle: "Open a provider app or run a recent session, then refresh.",
     };
   }
 

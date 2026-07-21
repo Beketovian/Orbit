@@ -7,8 +7,8 @@ import { SegmentedControl } from "./SegmentedControl";
 describe("Toggle", () => {
   it("is an accessible switch that reports state changes", async () => {
     const onChange = vi.fn();
-    render(<Toggle label="Demo Mode" checked={false} onChange={onChange} />);
-    const control = screen.getByRole("switch", { name: "Demo Mode" });
+    render(<Toggle label="Notifications" checked={false} onChange={onChange} />);
+    const control = screen.getByRole("switch", { name: "Notifications" });
     expect(control).toHaveAttribute("aria-checked", "false");
     await userEvent.click(control);
     expect(onChange).toHaveBeenCalledWith(true);

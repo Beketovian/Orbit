@@ -2,9 +2,8 @@ import { create } from "zustand";
 import type { ProviderId, ProviderResult, UsageHistory } from "@/types/usage";
 import { PROVIDER_IDS, PROVIDER_META } from "@/types/usage";
 import type { RefreshInterval, Settings } from "@/types/settings";
-import { DEFAULT_SETTINGS } from "@/types/settings";
+import { DEFAULT_SETTINGS, REFRESH_INTERVALS } from "@/types/settings";
 import { getProviders } from "@/providers";
-import { generateDemoHistory } from "@/providers/demo";
 import { loadValue, saveValue } from "@/lib/persistence";
 import { sendNotification } from "@/lib/notifications";
 import { getAutostart, setAutostart } from "@/lib/autostart";
@@ -34,7 +33,6 @@ interface UsageState {
   /** Re-read persisted state written by another Orbit window. */
   rehydrate(): Promise<void>;
   refresh(): Promise<void>;
-  setDemoMode(enabled: boolean): Promise<void>;
   setRefreshInterval(minutes: RefreshInterval): void;
   setLaunchAtLogin(enabled: boolean): Promise<void>;
   setNotificationsEnabled(enabled: boolean): void;
@@ -54,6 +52,35 @@ const emptyHistory = (): UsageHistory => ({
 
 function trimHistory(points: UsageHistory[ProviderId]): UsageHistory[ProviderId] {
   return points.slice(-HISTORY_DAYS);
+}
+
+interface LegacySettings extends Partial<Settings> {
+  demoMode?: boolean;
+}
+
+/** Normalize persisted settings and intentionally discard retired fields. */
+function normalizeSettings(settings: LegacySettings | null): Settings {
+  const interval = settings?.refreshIntervalMinutes;
+  return {
+    refreshIntervalMinutes: REFRESH_INTERVALS.includes(
+      interval as RefreshInterval,
+    )
+      ? (interval as RefreshInterval)
+      : DEFAULT_SETTINGS.refreshIntervalMinutes,
+    launchAtLogin:
+      typeof settings?.launchAtLogin === "boolean"
+        ? settings.launchAtLogin
+        : DEFAULT_SETTINGS.launchAtLogin,
+    notificationsEnabled:
+      typeof settings?.notificationsEnabled === "boolean"
+        ? settings.notificationsEnabled
+        : DEFAULT_SETTINGS.notificationsEnabled,
+    lowUsageThreshold:
+      typeof settings?.lowUsageThreshold === "number" &&
+      Number.isFinite(settings.lowUsageThreshold)
+        ? Math.max(0, Math.min(100, settings.lowUsageThreshold))
+        : DEFAULT_SETTINGS.lowUsageThreshold,
+  };
 }
 
 /** Fold fresh snapshots into per-day low-water-mark history. */
@@ -112,22 +139,27 @@ export const useUsageStore = create<UsageState>((set, get) => ({
     if (get().hydrated) return;
 
     const [settings, snapshots, history, lastUpdated] = await Promise.all([
-      loadValue<Settings>("settings"),
+      loadValue<LegacySettings>("settings"),
       loadValue<SnapshotMap>("snapshots"),
       loadValue<UsageHistory>("history"),
       loadValue<number>("lastUpdated"),
     ]);
 
-    const merged: Settings = { ...DEFAULT_SETTINGS, ...settings };
+    const merged = normalizeSettings(settings);
+    const discardDemoData = settings?.demoMode === true;
     // The OS is the source of truth for launch-at-login.
     merged.launchAtLogin = await getAutostart();
 
     set({
       hydrated: true,
       settings: merged,
-      snapshots: { ...emptySnapshots(), ...snapshots },
-      history: { ...emptyHistory(), ...history },
-      lastUpdated: lastUpdated ?? null,
+      snapshots: discardDemoData
+        ? emptySnapshots()
+        : { ...emptySnapshots(), ...snapshots },
+      history: discardDemoData
+        ? emptyHistory()
+        : { ...emptyHistory(), ...history },
+      lastUpdated: discardDemoData ? null : (lastUpdated ?? null),
     });
 
     await get().refresh();
@@ -135,16 +167,21 @@ export const useUsageStore = create<UsageState>((set, get) => ({
 
   async rehydrate() {
     const [settings, snapshots, history, lastUpdated] = await Promise.all([
-      loadValue<Settings>("settings"),
+      loadValue<LegacySettings>("settings"),
       loadValue<SnapshotMap>("snapshots"),
       loadValue<UsageHistory>("history"),
       loadValue<number>("lastUpdated"),
     ]);
+    const discardDemoData = settings?.demoMode === true;
     set({
-      settings: { ...DEFAULT_SETTINGS, ...settings },
-      snapshots: { ...emptySnapshots(), ...snapshots },
-      history: { ...emptyHistory(), ...history },
-      lastUpdated: lastUpdated ?? null,
+      settings: normalizeSettings(settings),
+      snapshots: discardDemoData
+        ? emptySnapshots()
+        : { ...emptySnapshots(), ...snapshots },
+      history: discardDemoData
+        ? emptyHistory()
+        : { ...emptyHistory(), ...history },
+      lastUpdated: discardDemoData ? null : (lastUpdated ?? null),
     });
   },
 
@@ -153,7 +190,7 @@ export const useUsageStore = create<UsageState>((set, get) => ({
     set({ refreshing: true });
     try {
       const { settings } = get();
-      const providers = getProviders(settings.demoMode);
+      const providers = getProviders();
       const results = await Promise.all(providers.map((p) => p.fetchUsage()));
 
       const snapshots = emptySnapshots();
@@ -162,19 +199,7 @@ export const useUsageStore = create<UsageState>((set, get) => ({
         snapshots[id] = result;
       }
 
-      let history = recordHistory(get().history, snapshots);
-      // Demo mode ships with a believable month of history.
-      if (settings.demoMode) {
-        history = { ...history };
-        for (const id of PROVIDER_IDS) {
-          if ((history[id]?.length ?? 0) < HISTORY_DAYS) {
-            history[id] = recordHistory(
-              { ...emptyHistory(), [id]: generateDemoHistory(id, HISTORY_DAYS) },
-              { ...emptySnapshots(), [id]: snapshots[id] },
-            )[id];
-          }
-        }
-      }
+      const history = recordHistory(get().history, snapshots);
 
       const lastUpdated = Date.now();
       set({ snapshots, history, lastUpdated });
@@ -183,14 +208,6 @@ export const useUsageStore = create<UsageState>((set, get) => ({
     } finally {
       set({ refreshing: false });
     }
-  },
-
-  async setDemoMode(enabled) {
-    const settings = { ...get().settings, demoMode: enabled };
-    // Snapshots from the previous mode no longer apply.
-    set({ settings, snapshots: emptySnapshots(), history: emptyHistory(), notifiedLow: [] });
-    await persist({ ...get(), settings });
-    await get().refresh();
   },
 
   setRefreshInterval(minutes) {

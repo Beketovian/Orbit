@@ -31,6 +31,8 @@ const GRADIENTS: Record<ProviderId, string[]> = {
 export interface UsageRingProps {
   provider: ProviderId;
   label: string;
+  /** Short name for the limit window represented by the ring. */
+  windowLabel?: string;
   /** Remaining usage 0–100, or null when unavailable. */
   value: number | null;
   /** Outer diameter in px. */
@@ -46,6 +48,7 @@ export interface UsageRingProps {
 export function UsageRing({
   provider,
   label,
+  windowLabel,
   value,
   size = 120,
   strokeWidth = 9,
@@ -82,7 +85,9 @@ export function UsageRing({
       aria-valuemax={100}
       aria-valuenow={unavailable ? undefined : clamped}
       aria-valuetext={
-        unavailable ? "Unavailable" : `${clamped}% remaining`
+        unavailable
+          ? "Unavailable"
+          : `${clamped}% ${windowLabel ? `${windowLabel} ` : ""}remaining`
       }
       aria-label={`${label} usage remaining`}
     >
@@ -130,6 +135,11 @@ export function UsageRing({
           </span>
         )}
         <span className={styles.label}>{label}</span>
+        {!unavailable && (
+          <span className={styles.sublabel}>
+            {windowLabel ? `${windowLabel} remaining` : "remaining"}
+          </span>
+        )}
       </div>
     </div>
   );

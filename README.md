@@ -27,7 +27,7 @@ Built with Tauri 2 · React · TypeScript · Rust — no Electron, no backend, n
 - **Menu bar / tray app** — click the tray icon for a compact floating panel with three usage rings, reset times, and a one-line status summary
 - **Main window** — Overview (large rings + one restrained weekly chart), History (7 / 30 days), and Settings
 - **Usage rings** — Apple-style activity rings: start at 12 o'clock, sweep clockwise, rounded caps, gradient strokes, spring-animated, exposed to assistive tech as meters
-- **Demo Mode** — on by default; the whole product works with zero accounts (Claude 92 %, Codex 93 %, Antigravity 94 %)
+- **Live-only data** — every number comes from a local provider source; unavailable integrations say why instead of displaying samples
 - **Local persistence** — settings, snapshots, and 30 days of history stored on disk via `tauri-plugin-store`; nothing ever leaves your machine
 - **Notifications** — a native notification when a service drops below your threshold, re-armed after it recovers
 - **Launch at login** — via `tauri-plugin-autostart`, where the platform supports it
@@ -59,21 +59,23 @@ src/                     # React frontend (all product logic)
 │   ├── history/         # 7 / 30 day history
 │   └── settings/        # Settings groups
 ├── providers/           # Usage-source abstraction
-│   ├── demo.ts          #   DemoProvider (default experience)
-│   ├── claude.ts        #   ClaudeProvider      — honest "unavailable" state
-│   ├── codex.ts         #   CodexProvider       — honest "unavailable" state
-│   └── antigravity.ts   #   AntigravityProvider — honest "unavailable" state
+│   ├── index.ts         #   Live provider registry
+│   ├── claude.ts        #   ClaudeProvider      — native-reader adapter
+│   ├── codex.ts         #   CodexProvider       — native-reader adapter
+│   └── antigravity.ts   #   AntigravityProvider — live local model quota
 ├── store/               # Zustand store: settings, snapshots, history
 ├── hooks/               # useAutoRefresh, useNow, useReducedMotion
 ├── lib/                 # time, persistence, notifications, autostart, tauri bridge
 ├── styles/              # Design tokens (color, type, spacing, motion) + base
 └── types/               # Shared domain types
 
-src-tauri/               # Rust shell (native affordances only)
-└── src/lib.rs           # Tray icon + menu, panel toggle/anchor, window events
+src-tauri/               # Rust shell + local, read-only usage readers
+└── src/
+    ├── lib.rs           # Tray icon + menu, panel toggle/anchor, window events
+    └── usage/           # Claude, Codex, and Antigravity native readers
 ```
 
-**Providers.** Every usage source implements one interface: `fetchUsage(): Promise<ProviderResult>`. A result is either an `ok` snapshot (percent remaining + reset time) or an honest `unavailable` state with a reason. Live data comes from local files the tools already write — Claude Code session transcripts (`~/.claude/projects`, summed over the rolling 5-hour window against an estimated budget) and Codex CLI rate-limit snapshots (`~/.codex/sessions`, exact percentages). Antigravity has no readable local usage artifact yet and says so. Estimated values are marked `estimated` and labeled in Settings. Full details, principles, and roadmap: [docs/LIVE_PROVIDERS.md](docs/LIVE_PROVIDERS.md).
+**Providers.** Every usage source implements one interface: `fetchUsage(): Promise<ProviderResult>`. A result is either an `ok` snapshot (percent remaining + reset time) or an honest `unavailable` state with a reason. Live data comes from local sources — Claude Code session transcripts/statusline cache, Codex CLI rate-limit snapshots (`~/.codex/sessions`, with both 5-hour and weekly windows), and Antigravity's loopback-only language-server quota endpoint while the IDE is open. Estimated values are marked `estimated` and labeled in Settings. See [live-provider details](docs/LIVE_PROVIDERS.md) and the [provider integration guide](docs/ADDING_PROVIDERS.md).
 
 **State.** A single Zustand store hydrates from disk, refreshes on a configurable interval, folds each snapshot into a per-day low-water-mark history (30 days retained), and persists through `tauri-plugin-store` (falling back to `localStorage` in a browser).
 
@@ -101,6 +103,7 @@ npm run dev          # browser-only preview (panel at /?window=panel)
 npm test             # unit + component tests (Vitest)
 npm run build        # typecheck + bundle the frontend
 npm run tauri build  # production desktop build + installers
+npm run package:mac  # ad-hoc-signed macOS app + DMG
 ```
 
 Regenerate the app icon (pure Node, no image dependencies):
@@ -113,8 +116,8 @@ node scripts/generate-icon.mjs && npm run tauri icon src/assets/icon-source.png
 
 - [x] Local-file readers for Claude Code and Codex ([docs/LIVE_PROVIDERS.md](docs/LIVE_PROVIDERS.md))
 - [ ] Claude budget presets per plan + auto-calibration from observed peaks
-- [ ] Codex weekly (secondary) window
-- [ ] Antigravity local usage source, when one exists
+- [x] Claude, Codex, and Antigravity 5-hour + weekly limit display
+- [x] Antigravity live usage from its local language server
 - [ ] Per-provider notification thresholds
 - [ ] Menu bar percentage title (macOS)
 - [ ] Localization
@@ -124,6 +127,9 @@ node scripts/generate-icon.mjs && npm run tauri icon src/assets/icon-source.png
 Issues and pull requests are welcome. Keep changes small and focused, match the existing code style, add tests for logic, and use [Conventional Commits](https://www.conventionalcommits.org).
 
 Guiding principle for any UI change: *would Apple ship this?*
+
+For release signing, notarization, and tag-based packaging, see
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## License
 
