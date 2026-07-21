@@ -114,4 +114,12 @@ describe("useUsageStore", () => {
     expect(raw).not.toBeNull();
     expect(JSON.parse(raw!).refreshIntervalMinutes).toBe(30);
   });
+
+  it("persists the usage hints preference", async () => {
+    await useUsageStore.getState().hydrate();
+    useUsageStore.getState().setUsageHintsEnabled(false);
+    const raw = window.localStorage.getItem("orbit:settings");
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw!).showUsageHints).toBe(false);
+  });
 });

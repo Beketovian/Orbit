@@ -5,10 +5,17 @@ export interface StatusRowProps {
   icon?: ReactNode;
   children: ReactNode;
   size?: "sm" | "md";
+  /** Allow long status details to use more than one line. */
+  wrap?: boolean;
 }
 
-/** A quiet single-line row: small leading icon, secondary text. */
-export function StatusRow({ icon, children, size = "md" }: StatusRowProps) {
+/** A quiet status row with a small leading icon and secondary text. */
+export function StatusRow({
+  icon,
+  children,
+  size = "md",
+  wrap = false,
+}: StatusRowProps) {
   return (
     <div className={styles.row}>
       {icon && (
@@ -16,7 +23,11 @@ export function StatusRow({ icon, children, size = "md" }: StatusRowProps) {
           {icon}
         </span>
       )}
-      <span className={`${styles.text} ${size === "sm" ? styles.sm : ""}`}>
+      <span
+        className={`${styles.text} ${size === "sm" ? styles.sm : ""} ${
+          wrap ? styles.wrap : ""
+        }`}
+      >
         {children}
       </span>
     </div>

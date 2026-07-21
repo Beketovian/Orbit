@@ -20,6 +20,7 @@ export function SettingsView() {
   const setRefreshInterval = useUsageStore((s) => s.setRefreshInterval);
   const setLaunchAtLogin = useUsageStore((s) => s.setLaunchAtLogin);
   const setNotificationsEnabled = useUsageStore((s) => s.setNotificationsEnabled);
+  const setUsageHintsEnabled = useUsageStore((s) => s.setUsageHintsEnabled);
 
   const autostartSupported = isAutostartSupported();
 
@@ -71,6 +72,16 @@ export function SettingsView() {
               label="Notifications"
               checked={settings.notificationsEnabled}
               onChange={setNotificationsEnabled}
+            />
+          </SettingsRow>
+          <SettingsRow
+            title="Usage hints"
+            description="Show guidance such as when a provider needs attention."
+          >
+            <Toggle
+              label="Usage hints"
+              checked={settings.showUsageHints}
+              onChange={setUsageHintsEnabled}
             />
           </SettingsRow>
         </GlassSurface>

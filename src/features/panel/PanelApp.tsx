@@ -1,10 +1,11 @@
+import { useEffect } from "react";
 import { useUsageStore } from "@/store/usageStore";
 import { PROVIDER_IDS, PROVIDER_META } from "@/types/usage";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { useNow } from "@/hooks/useNow";
 import { formatReset, formatUpdatedAgo } from "@/lib/time";
 import { summarizeUsage } from "@/lib/summary";
-import { openMainWindow } from "@/lib/tauri";
+import { openMainWindow, setPanelCompact } from "@/lib/tauri";
 import { GlassSurface } from "@/components/GlassSurface";
 import { UsageRing } from "@/components/UsageRing";
 import { StatusRow } from "@/components/StatusRow";
@@ -25,8 +26,13 @@ export function PanelApp() {
   const refreshing = useUsageStore((s) => s.refreshing);
   const refresh = useUsageStore((s) => s.refresh);
   const threshold = useUsageStore((s) => s.settings.lowUsageThreshold);
+  const showUsageHints = useUsageStore((s) => s.settings.showUsageHints);
 
   const summary = summarizeUsage(snapshots, threshold);
+
+  useEffect(() => {
+    void setPanelCompact(!showUsageHints);
+  }, [showUsageHints]);
 
   const resetParts = PROVIDER_IDS.flatMap((id) => {
     const result = snapshots[id];
@@ -77,7 +83,7 @@ export function PanelApp() {
         </div>
 
         <div className={styles.section}>
-          <StatusRow size="sm" icon={<ClockIcon size={14} />}>
+          <StatusRow size="sm" wrap icon={<ClockIcon size={14} />}>
             {resetParts.length > 0 ? (
               resetParts.map((part, i) => (
                 <span key={i}>
@@ -91,18 +97,20 @@ export function PanelApp() {
           </StatusRow>
         </div>
 
-        <GlassSurface
-          variant="inset"
-          className={`${styles.summary} ${styles[`tone-${summary.tone}`]}`}
-        >
-          <span className={styles.summaryIcon} aria-hidden>
-            <SparkleIcon size={16} />
-          </span>
-          <div>
-            <div className={styles.summaryTitle}>{summary.title}</div>
-            <div className={styles.summarySubtitle}>{summary.subtitle}</div>
-          </div>
-        </GlassSurface>
+        {showUsageHints && (
+          <GlassSurface
+            variant="inset"
+            className={`${styles.summary} ${styles[`tone-${summary.tone}`]}`}
+          >
+            <span className={styles.summaryIcon} aria-hidden>
+              <SparkleIcon size={16} />
+            </span>
+            <div>
+              <div className={styles.summaryTitle}>{summary.title}</div>
+              <div className={styles.summarySubtitle}>{summary.subtitle}</div>
+            </div>
+          </GlassSurface>
+        )}
 
         <footer className={styles.footer}>
           <Button

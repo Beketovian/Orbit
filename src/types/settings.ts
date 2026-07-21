@@ -7,6 +7,8 @@ export interface Settings {
   refreshIntervalMinutes: RefreshInterval;
   launchAtLogin: boolean;
   notificationsEnabled: boolean;
+  /** Show calm usage guidance in the menu-bar panel. */
+  showUsageHints: boolean;
   /** Notify when remaining usage drops below this percentage. */
   lowUsageThreshold: number;
 }
@@ -15,5 +17,6 @@ export const DEFAULT_SETTINGS: Settings = {
   refreshIntervalMinutes: 5,
   launchAtLogin: false,
   notificationsEnabled: true,
+  showUsageHints: true,
   lowUsageThreshold: 20,
 };

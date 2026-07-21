@@ -48,6 +48,13 @@ export async function hidePanel(): Promise<void> {
   await invoke("hide_panel");
 }
 
+/** Match the native tray panel height to whether guidance is visible. */
+export async function setPanelCompact(compact: boolean): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("set_panel_compact", { compact });
+}
+
 /** Broadcast an app-level event to every window (no-op in the browser). */
 export async function emitEvent(event: string, payload?: unknown): Promise<void> {
   if (!isTauri()) return;

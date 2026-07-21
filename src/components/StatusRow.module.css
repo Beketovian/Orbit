@@ -22,6 +22,14 @@
   text-overflow: ellipsis;
 }
 
+.text.wrap {
+  min-width: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+}
+
 .text strong {
   color: var(--text-primary);
   font-weight: 600;

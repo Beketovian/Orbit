@@ -36,6 +36,7 @@ interface UsageState {
   setRefreshInterval(minutes: RefreshInterval): void;
   setLaunchAtLogin(enabled: boolean): Promise<void>;
   setNotificationsEnabled(enabled: boolean): void;
+  setUsageHintsEnabled(enabled: boolean): void;
 }
 
 const emptySnapshots = (): SnapshotMap => ({
@@ -75,6 +76,10 @@ function normalizeSettings(settings: LegacySettings | null): Settings {
       typeof settings?.notificationsEnabled === "boolean"
         ? settings.notificationsEnabled
         : DEFAULT_SETTINGS.notificationsEnabled,
+    showUsageHints:
+      typeof settings?.showUsageHints === "boolean"
+        ? settings.showUsageHints
+        : DEFAULT_SETTINGS.showUsageHints,
     lowUsageThreshold:
       typeof settings?.lowUsageThreshold === "number" &&
       Number.isFinite(settings.lowUsageThreshold)
@@ -226,6 +231,12 @@ export const useUsageStore = create<UsageState>((set, get) => ({
   setNotificationsEnabled(enabled) {
     const settings = { ...get().settings, notificationsEnabled: enabled };
     set({ settings, notifiedLow: enabled ? get().notifiedLow : [] });
+    void persistSettings(settings);
+  },
+
+  setUsageHintsEnabled(enabled) {
+    const settings = { ...get().settings, showUsageHints: enabled };
+    set({ settings });
     void persistSettings(settings);
   },
 }));

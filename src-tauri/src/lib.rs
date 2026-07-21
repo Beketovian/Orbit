@@ -8,7 +8,7 @@ pub mod usage;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, WindowEvent,
+    AppHandle, Emitter, LogicalSize, Manager, Size, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_positioner::{Position, WindowExt};
@@ -43,6 +43,23 @@ fn open_main_window(app: AppHandle, section: Option<String>) {
 fn hide_panel(app: AppHandle) {
     if let Some(panel) = app.get_webview_window("panel") {
         let _ = panel.hide();
+    }
+}
+
+/// Remove unused vertical space when usage guidance is turned off.
+#[tauri::command]
+fn set_panel_compact(app: AppHandle, compact: bool) {
+    const PANEL_WIDTH: f64 = 500.0;
+    const STANDARD_HEIGHT: f64 = 452.0;
+    const COMPACT_HEIGHT: f64 = 392.0;
+
+    if let Some(panel) = app.get_webview_window("panel") {
+        let height = if compact {
+            COMPACT_HEIGHT
+        } else {
+            STANDARD_HEIGHT
+        };
+        let _ = panel.set_size(Size::Logical(LogicalSize::new(PANEL_WIDTH, height)));
     }
 }
 
@@ -110,6 +127,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_main_window,
             hide_panel,
+            set_panel_compact,
             get_live_usage
         ])
         .setup(|app| {
